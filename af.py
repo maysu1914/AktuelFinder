@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from lxml import html
 from lxml import etree
 from urllib.parse import urlparse
+from urllib.parse import urljoin
 import os
 from PyPDF2 import PdfFileReader
 from multiprocessing import Pool
@@ -97,12 +98,12 @@ class BimAktuel(Aktuel):
             # https://stackoverflow.com/a/40305745
             futures = page_content.find("div", {"class": "subButtonArea-5"})
             for brosur in futures.find_all('a', 'subButton'):
-                aktuel = {'magaza': 'BİM', 'aktuel': "",
-                          'durum': '', 'tarih': ''}
+                aktuel = {'magaza': 'BİM'}
                 aktuel['aktuel'] = brosur.text.strip() + ' ' + \
                     brosur['href'].split('_')[-1]
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
+                aktuel['url'] = urljoin(self.url,brosur['href'])
                 aktuels.append(aktuel)
         except Exception as error:
             raise
@@ -114,12 +115,12 @@ class BimAktuel(Aktuel):
             currents = BeautifulSoup(str(page_content.select(
                 'div.subButtonArea.active')), "lxml")  # https://stackoverflow.com/a/40305745
             for brosur in currents.find_all('a', 'subButton'):
-                aktuel = {'magaza': 'BİM', 'aktuel': "",
-                          'durum': '', 'tarih': ''}
+                aktuel = {'magaza': 'BİM'}
                 aktuel['aktuel'] = brosur.text.strip() + ' ' + \
                     brosur['href'].split('_')[-1]
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
+                aktuel['url'] = urljoin(self.url,brosur['href'])
                 aktuels.append(aktuel)
         except Exception as error:
             return
@@ -145,12 +146,11 @@ class A101Aktuel(Aktuel):
             currents = page_content.find(
                 "div", "brochures-list").find("ul", recursive=False)
             for brosur in currents.find_all("li", recursive=False):
-                aktuel = {'magaza': 'A101', 'aktuel': "",
-                          'durum': '', 'tarih': ''}
-                aktuel['aktuel'] = brosur.find(
-                    "span").text  # + ' ' + brosur.a['href']
+                aktuel = {'magaza': 'A101'}
+                aktuel['aktuel'] = brosur.find("span").text
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
+                aktuel['url'] = urljoin(self.url,brosur.a['href'])
                 aktuels.append(aktuel)
         except Exception as error:
             raise error
@@ -181,11 +181,11 @@ class SokAktuel(Aktuel):
             for brosur in currents:
                 filename = pdf_task.downloadPdf(brosur)
                 if filename is not None:
-                    aktuel = {'magaza': 'ŞOK', 'aktuel': "",
-                              'durum': '', 'tarih': ''}
+                    aktuel = {'magaza': 'ŞOK'}
                     aktuel['aktuel'] = pdf_task.getPdfTitle(filename)
                     aktuel['durum'] = 'new'
                     aktuel['tarih'] = str(datetime.datetime.now())
+                    aktuel['url'] = brosur
                     aktuels.append(aktuel)
                 else:
                     pass

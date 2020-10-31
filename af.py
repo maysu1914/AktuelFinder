@@ -83,9 +83,6 @@ def girdiDuzenleyici(silinecekler):
         if not a:
             silinecekler.remove(a)
             
-    for silinecek in silinecekler:
-        if len(silinecek)>=2:
-            silinecek = silinecek.lstrip('0')
     return silinecekler
 
 def girdiKontrol(silinecekler, limitEkle, limitSil):

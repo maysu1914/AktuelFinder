@@ -1,18 +1,19 @@
-import json
 import ast
 import datetime
+import json
+import os
 import requests
+import sys
+from multiprocessing import Pool
+from urllib.parse import urlparse, urljoin
+
+from PyPDF2 import PdfFileReader
 from bs4 import BeautifulSoup
 from lxml import html
-from lxml import etree
-from urllib.parse import urlparse
-from urllib.parse import urljoin
-import os
-from PyPDF2 import PdfFileReader
-from multiprocessing import Pool
-import sys
+
 if not sys.warnoptions:  # https://stackoverflow.com/questions/49939085/xref-table-not-zero-indexed-id-numbers-for-objects-will-be-corrected-wont-con
     import warnings
+
     warnings.simplefilter("ignore")
 
 
@@ -21,14 +22,16 @@ class Aktuel():
     def __init__(self):
         self.aktuels = []
 
-    def getContent(self, url):
+    @staticmethod
+    def getContent(url):
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
             page = requests.get(url, timeout=10, headers=headers)
             page_content = BeautifulSoup(page.content, "lxml")
             return page_content
-        except Exception as error:
+        except requests.exceptions.ConnectionError as e:
+            # print(e, 1)
             raise
 
 
@@ -38,9 +41,9 @@ class PdfTask():
         base_url = parse.scheme + '://' + parse.netloc
         try:
             redirect = requests.get(url, allow_redirects=False)
-        except Exception as error:
-            print(2)
-            raise error
+        except requests.exceptions.ConnectionError as e:
+            print(e, 2)
+            raise
 
         if redirect.status_code == 302:
             url = base_url + redirect.headers['location']
@@ -87,8 +90,9 @@ class BimAktuel(Aktuel):
             page_content = self.getContent(self.url)
             self.aktuels += self.getCurrentAktuels(page_content)
             self.aktuels += self.getFutureAktuels(page_content)
-        except Exception as error:
+        except requests.exceptions.ConnectionError as e:
             print('BİM aktüel kontrolü basarisiz!')
+            # print(e, 3)
             raise
         return self.aktuels
 
@@ -99,13 +103,13 @@ class BimAktuel(Aktuel):
             futures = page_content.find("div", {"class": "subButtonArea-5"})
             for brosur in futures.find_all('a', 'subButton'):
                 aktuel = {'magaza': 'BİM'}
-                aktuel['aktuel'] = brosur.text.strip() + ' ' + \
-                    brosur['href'].split('_')[-1]
+                aktuel['aktuel'] = brosur.text.strip() + ' ' + brosur['href'].split('_')[-1]
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
-                aktuel['url'] = urljoin(self.url,brosur['href'])
+                aktuel['url'] = urljoin(self.url, brosur['href'])
                 aktuels.append(aktuel)
-        except Exception as error:
+        except Exception as e:
+            print(e, 4)
             raise
         return aktuels
 
@@ -116,13 +120,13 @@ class BimAktuel(Aktuel):
                 'div.subButtonArea.active')), "lxml")  # https://stackoverflow.com/a/40305745
             for brosur in currents.find_all('a', 'subButton'):
                 aktuel = {'magaza': 'BİM'}
-                aktuel['aktuel'] = brosur.text.strip() + ' ' + \
-                    brosur['href'].split('_')[-1]
+                aktuel['aktuel'] = brosur.text.strip() + ' ' + brosur['href'].split('_')[-1]
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
-                aktuel['url'] = urljoin(self.url,brosur['href'])
+                aktuel['url'] = urljoin(self.url, brosur['href'])
                 aktuels.append(aktuel)
-        except Exception as error:
+        except Exception as e:
+            print(e, 5)
             return
         return aktuels
 
@@ -135,8 +139,9 @@ class A101Aktuel(Aktuel):
         try:
             page_content = self.getContent(self.url)
             self.aktuels += self.getCurrentAktuels(page_content)
-        except Exception as error:
+        except requests.exceptions.ConnectionError as e:
             print('A101 aktüel kontrolü basarisiz!')
+            # print(e, 6)
             raise
         return self.aktuels
 
@@ -150,10 +155,11 @@ class A101Aktuel(Aktuel):
                 aktuel['aktuel'] = brosur.find("span").text
                 aktuel['durum'] = 'new'
                 aktuel['tarih'] = str(datetime.datetime.now())
-                aktuel['url'] = urljoin(self.url,brosur.a['href'])
+                aktuel['url'] = urljoin(self.url, brosur.a['href'])
                 aktuels.append(aktuel)
-        except Exception as error:
-            raise error
+        except Exception as e:
+            print(e, 7)
+            raise
         return aktuels
 
 
@@ -165,8 +171,9 @@ class SokAktuel(Aktuel):
         try:
             page_content = self.getContent(self.url)
             self.aktuels += self.getCurrentAktuels(page_content)
-        except Exception as error:
+        except requests.exceptions.ConnectionError as e:
             print('ŞOK aktüel kontrolü basarisiz!')
+            # print(e, 8)
             raise
         return self.aktuels
 
@@ -189,8 +196,9 @@ class SokAktuel(Aktuel):
                     aktuels.append(aktuel)
                 else:
                     pass
-        except Exception as error:
-            raise error
+        except Exception as e:
+            print(e, 9)
+            raise
         return aktuels
 
 
@@ -200,8 +208,7 @@ class AktuelDB():
         self.filename = filename
 
     def saveAktuels(self, data):
-        old_filename = self.filename + \
-            ".txt.{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M"))
+        old_filename = self.filename + ".txt.{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M"))
         if os.path.isfile(self.filename + ".txt"):
             if os.path.isfile(old_filename):
                 os.remove(old_filename)
@@ -224,7 +231,8 @@ class AktuelDB():
             data = sorted(data, key=lambda k: k['tarih'], reverse=False)
             data = sorted(data, key=lambda k: k['magaza'], reverse=False)
             return data
-        except:
+        except Exception as e:
+            print(e, 10)
             return []
 
     def readAktuel(self, aktuel):
@@ -234,10 +242,8 @@ class AktuelDB():
         for i in ast.literal_eval(data):
             if i['magaza'] == aktuel:
                 localAktuel.append(i)
-        localAktuel = sorted(
-            localAktuel, key=lambda k: k['tarih'], reverse=False)
-        localAktuel = sorted(
-            localAktuel, key=lambda k: k['magaza'], reverse=False)
+        localAktuel = sorted(localAktuel, key=lambda k: k['tarih'], reverse=False)
+        localAktuel = sorted(localAktuel, key=lambda k: k['magaza'], reverse=False)
         return localAktuel
 
 
@@ -256,7 +262,8 @@ class AktuelFinder():
             for name, process in processes.items():
                 try:
                     aktuels += process.get()
-                except Exception as e:
+                except requests.exceptions.ConnectionError as e:
+                    # print(e, 11)
                     aktuels += AktuelDB('aktuels').readAktuel(name)
                     self.exception = True
 
@@ -273,8 +280,7 @@ class AktuelFinder():
 
         self.active_aktuels = self.getActiveAktuels(saved_aktuels)
         self.still_active_aktuels = {}
-        self.expired_aktuels = self.getExpiredAktuels(
-            aktuels, self.active_aktuels)
+        self.expired_aktuels = self.getExpiredAktuels(aktuels, self.active_aktuels)
         self.new_aktuels = self.getNewAktuels(aktuels, self.active_aktuels)
 
         if self.exception:
@@ -291,17 +297,15 @@ class AktuelFinder():
         if self.expired_aktuels:
             print("Biten aktüeller:")
             for key, expired_aktuel in self.expired_aktuels.items():
-                print(str(key)+'.',
-                      expired_aktuel['magaza'], expired_aktuel['aktuel'])
-            print(
-                "* Kaldirilanlarin ':' ve ID'sini girin. (Hepsini kaldirmak icin :0 girin)\n")
+                print(str(key) + '.', expired_aktuel['magaza'], expired_aktuel['aktuel'])
+            print("* Kaldirilanlarin ':' ve ID'sini girin. (Hepsini kaldirmak icin :0 girin)\n")
         else:
             pass
 
         if self.new_aktuels:
             print("Yeni aktüeller:")
             for key, new_aktuel in self.new_aktuels.items():
-                print(str(key)+'.', new_aktuel['magaza'], new_aktuel['aktuel'])
+                print(str(key) + '.', new_aktuel['magaza'], new_aktuel['aktuel'])
             print("* Eklenenlerin ID'sini girin. (Hepsini eklemek icin 0 girin)\n")
         else:
             pass
@@ -367,8 +371,7 @@ class AktuelFinder():
     def command(self):
         user_inputs = []
         if self.expired_aktuels or self.new_aktuels:
-            print(
-                "* Her bir komutu ',' ile ayirin. (Sadece tarihleri kaydetmek icin '#' girin)\n")
+            print("* Her bir komutu ',' ile ayirin. (Sadece tarihleri kaydetmek icin '#' girin)\n")
             while not self.commandControl(user_inputs, len(self.new_aktuels), len(self.expired_aktuels)):
                 user_inputs = input("Komut satiri: ")
                 user_inputs = self.commandOptimizer(user_inputs)
@@ -393,6 +396,7 @@ class AktuelFinder():
                     pass
             return True
         except Exception as e:
+            print(e, 12)
             return False
 
     def commandOptimizer(self, user_inputs):

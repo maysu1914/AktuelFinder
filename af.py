@@ -17,13 +17,13 @@ if not sys.warnoptions:  # https://stackoverflow.com/questions/49939085/xref-tab
     warnings.simplefilter("ignore")
 
 
-class Aktuel():
+class Aktuel:
 
     def __init__(self):
         self.aktuels = []
 
     @staticmethod
-    def getContent(url):
+    def get_content(url):
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}
@@ -35,8 +35,8 @@ class Aktuel():
             raise
 
 
-class PdfTask():
-    def downloadPdf(self, url):
+class PdfTask:
+    def download_pdf(self, url):
         parse = urlparse(url)
         base_url = parse.scheme + '://' + parse.netloc
         try:
@@ -52,7 +52,7 @@ class PdfTask():
 
         filename = url.split('/')[-1]
 
-        if not self.isPdf(filename):
+        if not self.is_pdf(filename):
             return None
 
         if os.path.isfile(filename):
@@ -65,13 +65,13 @@ class PdfTask():
                 f.write(request.content)
             return filename.strip()
 
-    def isPdf(self, filename):
+    def is_pdf(self, filename):
         if filename[-4:] != '.pdf':
             return False
         else:
             return True
 
-    def getPdfTitle(self, filename):
+    def get_pdf_title(self, filename):
         # http://www.blog.pythonlibrary.org/2018/04/10/extracting-pdf-metadata-and-text-with-python/
         with open(filename, 'rb') as f:
             pdf = PdfFileReader(f)
@@ -85,18 +85,18 @@ class BimAktuel(Aktuel):
     market = "BİM"
     url = 'https://www.bim.com.tr/default.aspx'
 
-    def getAktuels(self):
+    def get_aktuels(self):
         try:
-            page_content = self.getContent(self.url)
-            self.aktuels += self.getCurrentAktuels(page_content)
-            self.aktuels += self.getFutureAktuels(page_content)
+            page_content = self.get_content(self.url)
+            self.aktuels += self.get_current_aktuels(page_content)
+            self.aktuels += self.get_future_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
             print('BİM aktüel kontrolü basarisiz!')
             # print(e, 3)
             raise
         return self.aktuels
 
-    def getFutureAktuels(self, page_content):
+    def get_future_aktuels(self, page_content):
         aktuels = []
         try:
             # https://stackoverflow.com/a/40305745
@@ -113,7 +113,7 @@ class BimAktuel(Aktuel):
             raise
         return aktuels
 
-    def getCurrentAktuels(self, page_content):
+    def get_current_aktuels(self, page_content):
         aktuels = []
         try:
             currents = BeautifulSoup(str(page_content.select(
@@ -135,17 +135,17 @@ class A101Aktuel(Aktuel):
     market = "A101"
     url = 'https://www.a101.com.tr/afisler'
 
-    def getAktuels(self):
+    def get_aktuels(self):
         try:
-            page_content = self.getContent(self.url)
-            self.aktuels += self.getCurrentAktuels(page_content)
+            page_content = self.get_content(self.url)
+            self.aktuels += self.get_current_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
             print('A101 aktüel kontrolü basarisiz!')
             # print(e, 6)
             raise
         return self.aktuels
 
-    def getCurrentAktuels(self, page_content):
+    def get_current_aktuels(self, page_content):
         aktuels = []
         try:
             currents = page_content.find(
@@ -167,17 +167,17 @@ class SokAktuel(Aktuel):
     market = "ŞOK"
     url = 'https://kurumsal.sokmarket.com.tr'
 
-    def getAktuels(self):
+    def get_aktuels(self):
         try:
-            page_content = self.getContent(self.url)
-            self.aktuels += self.getCurrentAktuels(page_content)
+            page_content = self.get_content(self.url)
+            self.aktuels += self.get_current_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
             print('ŞOK aktüel kontrolü basarisiz!')
             # print(e, 8)
             raise
         return self.aktuels
 
-    def getCurrentAktuels(self, page_content):
+    def get_current_aktuels(self, page_content):
         aktuels = []
         try:
             tree = html.fromstring(str(page_content))
@@ -186,28 +186,30 @@ class SokAktuel(Aktuel):
             currents = [self.url + tree.xpath('//html/body/div[1]/div[3]/div[1]/div[2]/p/a/@href')[0],
                         self.url + tree.xpath('//html/body/div[1]/div[3]/div[3]/div[2]/p/a/@href')[0]]
             for brosur in currents:
-                filename = pdf_task.downloadPdf(brosur)
+                filename = pdf_task.download_pdf(brosur)
                 if filename is not None:
                     aktuel = {'magaza': 'ŞOK'}
-                    aktuel['aktuel'] = pdf_task.getPdfTitle(filename)
+                    aktuel['aktuel'] = pdf_task.get_pdf_title(filename)
                     aktuel['durum'] = 'new'
                     aktuel['tarih'] = str(datetime.datetime.now())
                     aktuel['url'] = brosur
                     aktuels.append(aktuel)
                 else:
                     pass
+            clear()
         except Exception as e:
+            clear()
             print(e, 9)
             raise
         return aktuels
 
 
-class AktuelDB():
+class AktuelDB:
 
     def __init__(self, filename):
         self.filename = filename
 
-    def saveAktuels(self, data):
+    def save_aktuels(self, data):
         old_filename = self.filename + ".txt.{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M"))
         if os.path.isfile(self.filename + ".txt"):
             if os.path.isfile(old_filename):
@@ -222,7 +224,7 @@ class AktuelDB():
             file.write(json.dumps(data))
         print('\n{name}.txt olusturuldu.'.format(name=self.filename))
 
-    def readAktuels(self):
+    def read_aktuels(self):
         try:
             with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
                 data = f.readline()
@@ -235,7 +237,7 @@ class AktuelDB():
             print(e, 10)
             return []
 
-    def readAktuel(self, aktuel):
+    def read_aktuel(self, aktuel):
         localAktuel = []
         with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
             data = f.readline()
@@ -247,24 +249,31 @@ class AktuelDB():
         return localAktuel
 
 
-class AktuelFinder():
+def clear():  # https://stackoverflow.com/a/4810595
+    if os.name == 'posix':
+        os.system('clear')
+    else:
+        os.system('cls')
+
+
+class AktuelFinder:
 
     def __init__(self):
         self.exception = False
         self.markets = {'BİM': BimAktuel, 'A101': A101Aktuel, 'ŞOK': SokAktuel}
 
-    def getAktuels(self):
+    def get_aktuels(self):
         aktuels = []
         processes = {}
         with Pool() as pool:
             for name, market in self.markets.items():
-                processes[name] = pool.apply_async(market().getAktuels)
+                processes[name] = pool.apply_async(market().get_aktuels)
             for name, process in processes.items():
                 try:
                     aktuels += process.get()
                 except requests.exceptions.ConnectionError as e:
                     # print(e, 11)
-                    aktuels += AktuelDB('aktuels').readAktuel(name)
+                    aktuels += AktuelDB('aktuels').read_aktuel(name)
                     self.exception = True
 
         aktuels = sorted(aktuels, key=lambda k: k['tarih'], reverse=False)
@@ -272,16 +281,16 @@ class AktuelFinder():
 
         return aktuels
 
-    def showSummary(self):
+    def show_summary(self):
         self.aktuel_db = AktuelDB('aktuels')
 
-        saved_aktuels = self.aktuel_db.readAktuels()
-        aktuels = self.getAktuels()
+        saved_aktuels = self.aktuel_db.read_aktuels()
+        aktuels = self.get_aktuels()
 
-        self.active_aktuels = self.getActiveAktuels(saved_aktuels)
+        self.active_aktuels = self.get_active_aktuels(saved_aktuels)
         self.still_active_aktuels = {}
-        self.expired_aktuels = self.getExpiredAktuels(aktuels, self.active_aktuels)
-        self.new_aktuels = self.getNewAktuels(aktuels, self.active_aktuels)
+        self.expired_aktuels = self.get_expired_aktuels(aktuels, self.active_aktuels)
+        self.new_aktuels = self.get_new_aktuels(aktuels, self.active_aktuels)
 
         if self.exception:
             print('')
@@ -314,7 +323,7 @@ class AktuelFinder():
             print("Yeni aktüel yok.")
             input()
 
-    def getActiveAktuels(self, saved_aktuels):
+    def get_active_aktuels(self, saved_aktuels):
         active_aktuels = {}
         count = 1
 
@@ -327,7 +336,7 @@ class AktuelFinder():
 
         return active_aktuels
 
-    def getExpiredAktuels(self, aktuels, active_aktuels):
+    def get_expired_aktuels(self, aktuels, active_aktuels):
         expired_aktuels = {}
         count = 1
         count0 = 1
@@ -350,7 +359,7 @@ class AktuelFinder():
 
         return expired_aktuels
 
-    def getNewAktuels(self, aktuels, active_aktuels):
+    def get_new_aktuels(self, aktuels, active_aktuels):
         new_aktuels = {}
         count = 1
 
@@ -372,15 +381,15 @@ class AktuelFinder():
         user_inputs = []
         if self.expired_aktuels or self.new_aktuels:
             print("* Her bir komutu ',' ile ayirin. (Sadece tarihleri kaydetmek icin '#' girin)\n")
-            while not self.commandControl(user_inputs, len(self.new_aktuels), len(self.expired_aktuels)):
+            while not self.command_control(user_inputs, len(self.new_aktuels), len(self.expired_aktuels)):
                 user_inputs = input("Komut satiri: ")
-                user_inputs = self.commandOptimizer(user_inputs)
-            self.commandExecution(user_inputs)
-            self.saveAktuels()
+                user_inputs = self.command_optimizer(user_inputs)
+            self.command_execution(user_inputs)
+            self.save_aktuels()
         else:
             pass
 
-    def commandControl(self, user_inputs, new_max, expired_max):
+    def command_control(self, user_inputs, new_max, expired_max):
         try:
             if not user_inputs:
                 return False
@@ -399,7 +408,7 @@ class AktuelFinder():
             print(e, 12)
             return False
 
-    def commandOptimizer(self, user_inputs):
+    def command_optimizer(self, user_inputs):
         user_inputs = sorted(set(''.join(user_inputs.split()).split(',')))
         for a in user_inputs:
             if not a:
@@ -407,7 +416,7 @@ class AktuelFinder():
 
         return user_inputs
 
-    def commandExecution(self, user_inputs):
+    def command_execution(self, user_inputs):
         for user_input in user_inputs:
             if user_input == '#':
                 break
@@ -423,7 +432,7 @@ class AktuelFinder():
             else:
                 self.new_aktuels[int(user_input)]['durum'] = 'active'
 
-    def saveAktuels(self):
+    def save_aktuels(self):
         aktuels = []
         for key, value in self.new_aktuels.items():
             aktuels.append(value)
@@ -432,18 +441,12 @@ class AktuelFinder():
         for key, value in self.still_active_aktuels.items():
             aktuels.append(value)
 
-        self.aktuel_db.saveAktuels(aktuels)
-
-    def clear(self):  # https://stackoverflow.com/a/4810595
-        if os.name == 'posix':
-            os.system('clear')
-        else:
-            os.system('cls')
+        self.aktuel_db.save_aktuels(aktuels)
 
 
 if __name__ == "__main__":
     app = AktuelFinder()
     while True:
-        app.showSummary()
+        app.show_summary()
         app.command()
-        app.clear()  # when running on command window
+        clear()  # when running on command window

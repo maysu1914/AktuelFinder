@@ -36,7 +36,8 @@ class Aktuel:
 
 
 class PdfTask:
-    def download_pdf(self, url):
+    @staticmethod
+    def download_pdf(url):
         parse = urlparse(url)
         base_url = parse.scheme + '://' + parse.netloc
         try:
@@ -52,7 +53,7 @@ class PdfTask:
 
         filename = url.split('/')[-1]
 
-        if not self.is_pdf(filename):
+        if not PdfTask.is_pdf(filename):
             return None
 
         if os.path.isfile(filename):
@@ -65,13 +66,15 @@ class PdfTask:
                 f.write(request.content)
             return filename.strip()
 
-    def is_pdf(self, filename):
+    @staticmethod
+    def is_pdf(filename):
         if filename[-4:] != '.pdf':
             return False
         else:
             return True
 
-    def get_pdf_title(self, filename):
+    @staticmethod
+    def get_pdf_title(filename):
         # http://www.blog.pythonlibrary.org/2018/04/10/extracting-pdf-metadata-and-text-with-python/
         with open(filename, 'rb') as f:
             pdf = PdfFileReader(f)
@@ -91,7 +94,7 @@ class BimAktuel(Aktuel):
             self.aktuels += self.get_current_aktuels(page_content)
             self.aktuels += self.get_future_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
-            print('BİM aktüel kontrolü basarisiz!')
+            print('BİM campaign check is failed!')
             # print(e, 3)
             raise
         return self.aktuels
@@ -108,7 +111,9 @@ class BimAktuel(Aktuel):
                 aktuel['tarih'] = str(datetime.datetime.now())
                 aktuel['url'] = urljoin(self.url, brosur['href'])
                 aktuels.append(aktuel)
+            clear()
         except Exception as e:
+            clear()
             print(e, 4)
             raise
         return aktuels
@@ -125,7 +130,9 @@ class BimAktuel(Aktuel):
                 aktuel['tarih'] = str(datetime.datetime.now())
                 aktuel['url'] = urljoin(self.url, brosur['href'])
                 aktuels.append(aktuel)
+            clear()
         except Exception as e:
+            clear()
             print(e, 5)
             return
         return aktuels
@@ -140,7 +147,7 @@ class A101Aktuel(Aktuel):
             page_content = self.get_content(self.url)
             self.aktuels += self.get_current_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
-            print('A101 aktüel kontrolü basarisiz!')
+            print('A101 campaign check is failed!')
             # print(e, 6)
             raise
         return self.aktuels
@@ -157,7 +164,9 @@ class A101Aktuel(Aktuel):
                 aktuel['tarih'] = str(datetime.datetime.now())
                 aktuel['url'] = urljoin(self.url, brosur.a['href'])
                 aktuels.append(aktuel)
+            clear()
         except Exception as e:
+            clear()
             print(e, 7)
             raise
         return aktuels
@@ -172,7 +181,7 @@ class SokAktuel(Aktuel):
             page_content = self.get_content(self.url)
             self.aktuels += self.get_current_aktuels(page_content)
         except requests.exceptions.ConnectionError as e:
-            print('ŞOK aktüel kontrolü basarisiz!')
+            print('ŞOK campaign check is failed!')
             # print(e, 8)
             raise
         return self.aktuels
@@ -222,31 +231,37 @@ class AktuelDB:
 
         with open('{name}.txt'.format(name=self.filename), 'w', encoding="utf8") as file:
             file.write(json.dumps(data))
-        print('\n{name}.txt olusturuldu.'.format(name=self.filename))
+        print('\n{name}.txt created.'.format(name=self.filename))
 
     def read_aktuels(self):
         try:
-            with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
-                data = f.readline()
+            if os.path.isfile(self.filename + ".txt"):
+                with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
+                    data = f.readline()
 
-            data = ast.literal_eval(data)
-            data = sorted(data, key=lambda k: k['tarih'], reverse=False)
-            data = sorted(data, key=lambda k: k['magaza'], reverse=False)
-            return data
+                data = ast.literal_eval(data)
+                data = sorted(data, key=lambda k: k['tarih'], reverse=False)
+                data = sorted(data, key=lambda k: k['magaza'], reverse=False)
+                return data
+            else:
+                return []
         except Exception as e:
             print(e, 10)
             return []
 
     def read_aktuel(self, aktuel):
-        localAktuel = []
-        with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
-            data = f.readline()
-        for i in ast.literal_eval(data):
-            if i['magaza'] == aktuel:
-                localAktuel.append(i)
-        localAktuel = sorted(localAktuel, key=lambda k: k['tarih'], reverse=False)
-        localAktuel = sorted(localAktuel, key=lambda k: k['magaza'], reverse=False)
-        return localAktuel
+        local_aktuel = []
+        if os.path.isfile(self.filename + ".txt"):
+            with open('{}.txt'.format(self.filename), encoding='utf-8') as f:
+                data = f.readline()
+            for i in ast.literal_eval(data):
+                if i['magaza'] == aktuel:
+                    local_aktuel.append(i)
+            local_aktuel = sorted(local_aktuel, key=lambda k: k['tarih'], reverse=False)
+            local_aktuel = sorted(local_aktuel, key=lambda k: k['magaza'], reverse=False)
+            return local_aktuel
+        else:
+            return local_aktuel
 
 
 def clear():  # https://stackoverflow.com/a/4810595
@@ -261,6 +276,11 @@ class AktuelFinder:
     def __init__(self):
         self.exception = False
         self.markets = {'BİM': BimAktuel, 'A101': A101Aktuel, 'ŞOK': SokAktuel}
+        self.aktuel_db = AktuelDB('aktuels')
+        self.active_aktuels = {}
+        self.still_active_aktuels = {}
+        self.expired_aktuels = {}
+        self.new_aktuels = {}
 
     def get_aktuels(self):
         aktuels = []
@@ -273,7 +293,7 @@ class AktuelFinder:
                     aktuels += process.get()
                 except requests.exceptions.ConnectionError as e:
                     # print(e, 11)
-                    aktuels += AktuelDB('aktuels').read_aktuel(name)
+                    aktuels += self.aktuel_db.read_aktuel(name)
                     self.exception = True
 
         aktuels = sorted(aktuels, key=lambda k: k['tarih'], reverse=False)
@@ -282,8 +302,6 @@ class AktuelFinder:
         return aktuels
 
     def show_summary(self):
-        self.aktuel_db = AktuelDB('aktuels')
-
         saved_aktuels = self.aktuel_db.read_aktuels()
         aktuels = self.get_aktuels()
 
@@ -296,7 +314,7 @@ class AktuelFinder:
             print('')
 
         if self.active_aktuels:
-            print("Yayindaki aktüeller:")
+            print("Active campaigns:")
             for key, active_aktuel in self.active_aktuels.items():
                 print(active_aktuel['magaza'], active_aktuel['aktuel'])
             print('')
@@ -304,26 +322,28 @@ class AktuelFinder:
             pass
 
         if self.expired_aktuels:
-            print("Biten aktüeller:")
+            print("Expired campaigns:")
             for key, expired_aktuel in self.expired_aktuels.items():
                 print(str(key) + '.', expired_aktuel['magaza'], expired_aktuel['aktuel'])
-            print("* Kaldirilanlarin ':' ve ID'sini girin. (Hepsini kaldirmak icin :0 girin)\n")
+            print(
+                "* Please enter the IDs of campaigns you want to delete after ':' character. (Enter :0 for deleting all of them)\n")
         else:
             pass
 
         if self.new_aktuels:
-            print("Yeni aktüeller:")
+            print("New campaigns:")
             for key, new_aktuel in self.new_aktuels.items():
                 print(str(key) + '.', new_aktuel['magaza'], new_aktuel['aktuel'])
-            print("* Eklenenlerin ID'sini girin. (Hepsini eklemek icin 0 girin)\n")
+            print("* Please enter the IDs of campaigns you want to check out. (Enter 0 for check out all of them)\n")
         else:
             pass
 
         if not self.expired_aktuels and not self.new_aktuels:
-            print("Yeni aktüel yok.")
+            print("No new campaign.")
             input()
 
-    def get_active_aktuels(self, saved_aktuels):
+    @staticmethod
+    def get_active_aktuels(saved_aktuels):
         active_aktuels = {}
         count = 1
 
@@ -359,7 +379,8 @@ class AktuelFinder:
 
         return expired_aktuels
 
-    def get_new_aktuels(self, aktuels, active_aktuels):
+    @staticmethod
+    def get_new_aktuels(aktuels, active_aktuels):
         new_aktuels = {}
         count = 1
 
@@ -380,16 +401,17 @@ class AktuelFinder:
     def command(self):
         user_inputs = []
         if self.expired_aktuels or self.new_aktuels:
-            print("* Her bir komutu ',' ile ayirin. (Sadece tarihleri kaydetmek icin '#' girin)\n")
+            print("* Split every command with ',' character. (Enter '#' for saving the session)\n")
             while not self.command_control(user_inputs, len(self.new_aktuels), len(self.expired_aktuels)):
-                user_inputs = input("Komut satiri: ")
+                user_inputs = input("Command Line: ")
                 user_inputs = self.command_optimizer(user_inputs)
             self.command_execution(user_inputs)
             self.save_aktuels()
         else:
             pass
 
-    def command_control(self, user_inputs, new_max, expired_max):
+    @staticmethod
+    def command_control(user_inputs, new_max, expired_max):
         try:
             if not user_inputs:
                 return False
@@ -408,7 +430,8 @@ class AktuelFinder:
             print(e, 12)
             return False
 
-    def command_optimizer(self, user_inputs):
+    @staticmethod
+    def command_optimizer(user_inputs):
         user_inputs = sorted(set(''.join(user_inputs.split()).split(',')))
         for a in user_inputs:
             if not a:
@@ -428,7 +451,6 @@ class AktuelFinder:
             elif user_input == '0':
                 for key, new_aktuel in self.new_aktuels.items():
                     new_aktuel['durum'] = 'active'
-                break
             else:
                 self.new_aktuels[int(user_input)]['durum'] = 'active'
 

@@ -314,7 +314,7 @@ class AktuelFinder:
             print('')
 
         if self.active_aktuels:
-            print("Active campaigns:")
+            print("Chosen campaigns:")
             for key, active_aktuel in self.active_aktuels.items():
                 print(active_aktuel['magaza'], active_aktuel['aktuel'])
             print('')
@@ -326,7 +326,7 @@ class AktuelFinder:
             for key, expired_aktuel in self.expired_aktuels.items():
                 print(str(key) + '.', expired_aktuel['magaza'], expired_aktuel['aktuel'])
             print(
-                "* Please enter the IDs of campaigns you want to delete after ':' character. (Enter :0 for deleting all of them)\n")
+                "* Please enter the IDs of campaigns you want to delete by adding ':' to beginning. (Enter :0 for deleting all of them)\n")
         else:
             pass
 
@@ -334,7 +334,7 @@ class AktuelFinder:
             print("New campaigns:")
             for key, new_aktuel in self.new_aktuels.items():
                 print(str(key) + '.', new_aktuel['magaza'], new_aktuel['aktuel'])
-            print("* Please enter the IDs of campaigns you want to check out. (Enter 0 for check out all of them)\n")
+            print("* Please enter the IDs of campaigns you choose. (Enter 0 for choose all of them)\n")
         else:
             pass
 

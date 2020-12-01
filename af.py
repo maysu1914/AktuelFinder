@@ -80,7 +80,7 @@ class PdfTask:
             pdf = PdfFileReader(f)
             info = pdf.getDocumentInfo()
             pdf.getNumPages()
-        title = info.title if info else filename
+        title = info.title if info.title else filename
         return title.strip()
 
 

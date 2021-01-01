@@ -1,5 +1,5 @@
 import sys
-from multiprocessing import Pool
+from concurrent.futures.thread import ThreadPoolExecutor
 
 import requests
 
@@ -27,17 +27,18 @@ class AktuelFinder:
 
     def get_aktuels(self):
         aktuels = []
-        processes = {}
-        with Pool() as pool:
-            for name, market in self.markets.items():
-                processes[name] = pool.apply_async(market().get_aktuels)
-            for name, process in processes.items():
-                try:
-                    aktuels += process.get()
-                except requests.exceptions.ConnectionError as e:
-                    # print(e, 11)
-                    aktuels += self.aktuel_db.read_aktuel(name)
-                    self.exception = True
+        threads = {}
+
+        for name, market in self.markets.items():
+            obj = market()
+            threads[name] = ThreadPoolExecutor().submit(obj.get_aktuels)
+        for name, thread in threads.items():
+            try:
+                aktuels += thread.result()
+            except requests.exceptions.ConnectionError as e:
+                # print(e, 11)
+                aktuels += self.aktuel_db.read_aktuel(name)
+                self.exception = True
 
         aktuels = sorted(aktuels, key=lambda k: k['tarih'], reverse=False)
         aktuels = sorted(aktuels, key=lambda k: k['magaza'], reverse=False)

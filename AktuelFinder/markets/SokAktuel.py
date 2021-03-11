@@ -1,4 +1,5 @@
 import datetime
+from urllib.parse import urljoin
 
 from lxml import html
 
@@ -15,7 +16,7 @@ def clear():  # https://stackoverflow.com/a/4810595
 
 class SokAktuel(Aktuel):
     market = "ŞOK"
-    url = 'https://kurumsal.sokmarket.com.tr'
+    url = 'https://kurumsal.sokmarket.com.tr/haftanin-firsatlari/firsatlar'
 
     def get_aktuels(self):
         try:
@@ -32,8 +33,8 @@ class SokAktuel(Aktuel):
         try:
             tree = html.fromstring(str(page_content))
 
-            currents = [self.url + tree.xpath('//html/body/div[1]/div[3]/div[1]/div[2]/p/a/@href')[0],
-                        self.url + tree.xpath('//html/body/div[1]/div[3]/div[3]/div[2]/p/a/@href')[0]]
+            currents = [urljoin(self.url, tree.xpath('//html/body/div[1]/div[4]/div[1]/a/@href')[0]),
+                        urljoin(self.url, tree.xpath('//html/body/div[1]/div[4]/div[2]/a/@href')[0])]
             for brosur in currents:
                 filename = download_pdf(brosur)
                 if filename is not None:

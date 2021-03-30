@@ -1,3 +1,5 @@
+from concurrent.futures.thread import ThreadPoolExecutor
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -5,6 +7,7 @@ from bs4 import BeautifulSoup
 class Aktuel:
 
     def __init__(self):
+        self.executor = ThreadPoolExecutor()
         self.aktuels = []
 
     @staticmethod

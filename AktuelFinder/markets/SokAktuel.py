@@ -30,19 +30,26 @@ class SokAktuel(Aktuel):
 
     def get_current_aktuels(self, page_content):
         aktuels = []
+        threads = {}
         try:
             tree = html.fromstring(str(page_content))
 
             currents = [urljoin(self.url, tree.xpath('//html/body/div[1]/div[4]/div[1]/a/@href')[0]),
                         urljoin(self.url, tree.xpath('//html/body/div[1]/div[4]/div[2]/a/@href')[0])]
-            for brosur in currents:
-                filename = download_pdf(brosur)
+            for index, url in enumerate(currents):
+                threads[index] = {
+                    'thread': self.executor.submit(download_pdf, url),
+                    'url': url
+                }
+
+            for index, data in threads.items():
+                filename = data['thread'].result()
                 if filename is not None:
                     aktuel = {'magaza': 'ŞOK'}
                     aktuel['aktuel'] = get_pdf_title(filename)
                     aktuel['durum'] = 'new'
                     aktuel['tarih'] = str(datetime.datetime.now())
-                    aktuel['url'] = brosur
+                    aktuel['url'] = data['url']
                     aktuels.append(aktuel)
                 else:
                     pass

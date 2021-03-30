@@ -18,6 +18,7 @@ class AktuelFinder:
 
     def __init__(self):
         self.exception = False
+        self.executor = ThreadPoolExecutor()
         self.markets = {'BİM': BimAktuel, 'A101': A101Aktuel, 'ŞOK': SokAktuel}
         self.aktuel_db = AktuelDB('aktuels')
         self.active_aktuels = {}
@@ -31,7 +32,7 @@ class AktuelFinder:
 
         for name, market in self.markets.items():
             obj = market()
-            threads[name] = ThreadPoolExecutor().submit(obj.get_aktuels)
+            threads[name] = self.executor.submit(obj.get_aktuels)
         for name, thread in threads.items():
             try:
                 aktuels += thread.result()
